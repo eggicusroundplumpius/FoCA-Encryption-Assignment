@@ -16,14 +16,10 @@
 #include <vector>     // for std::vector container
 
 
-// *** KEEP ALL COMMENTS UP-TO-DATE AND TIDY, USEFULLY COMMENT ALL CODE YOU PRODUCE AND DELETE STALE COMMENTS (LIKE THIS ONE) ***
-// *** THIS IS YOUR PROGRAM NOW, SO ALL COMMENTS ARE YOURS NOW! ***
-
-
-constexpr char const * STUDENT_NAME = "Your Name Goes Here"; // Replace with your full name
-constexpr int ENCRYPTION_ROUTINE_ID = -1;                    // Replace -1 with your encryption id
-constexpr char ENCRYPTION_KEY = '?';                         // Replace '?' with your encryption key
-constexpr int MAX_CHARS = 6;                                 // feel free to alter this, but must be 6 when submitting!
+constexpr char const * STUDENT_NAME = "Jaike Mogg-Wright";
+constexpr int ENCRYPTION_ROUTINE_ID = 9;                
+constexpr char ENCRYPTION_KEY = 't';
+constexpr int MAX_CHARS = 6;
 
 constexpr char STRING_TERMINATOR = '$';                      // custom string terminator
 constexpr char LINE_FEED_CHARACTER = '\n';                   // line feed character (hhhmmm, this comment seems a bit unnecassary...)
@@ -75,18 +71,18 @@ void encrypt_chars (int length, char EKey)
                                      // Note the lamentable lack of comments below!
     __asm
     {
-      push   eax                     //
-      push   ecx                     //
-      push   edx                     //
+      push   eax                     // Copy value of eax to stack, freeing register for use
+      push   ecx                     // Copy value of ecx to stack, freeing register for use
+      push   edx                     // Copy value of edx to stack, freeing register for use
 
-      lea    eax, EKey               //
-      movzx  ecx, temp_char          //
-      call   encrypt_nn              //
-      mov    temp_char, dl           //
+      lea    eax, EKey               // Load effective address of encryption key to register eax
+      movzx  ecx, temp_char          // Move temporary character (character to be encrypted) to register ecx with zero extension
+      call   encrypt_9               // Call subroutine 'encrypt_9'
+      mov    temp_char, dl           // Move variable 'temp_char' to register dl (8-bit low subregister of edx/rdx)
 
-      pop    edx                     //
-      pop    ecx                     //
-      pop    eax                     //
+      pop    edx                     // Restore value of edx from stack
+      pop    ecx                     // Restore value of ecx from stack
+      pop    eax                     // Restore value of eax from stack
     }
 
     encrypted_chars [i] = temp_char; // Store encrypted char in the encrypted_chars array
@@ -94,22 +90,35 @@ void encrypt_chars (int length, char EKey)
 
   return;
 
-  // Encrypt subroutine. You should paste in the encryption routine you've been allocated from BB and
-  // overwrite this initial, simple, version. Ensure you change the ‘call’ above to use the
-  // correct 'encrypt_nn' label where nn is your encryption routine number.
-
   // Inputs: register EAX = 32-bit address of Ekey
   //                  ECX = the character to be encrypted (in the low 8-bit field, CL)
   // Output: register EDX = the encrypted value of the source character (in the low 8-bit field, DL)
 
-  // REMEMBER TO UPDATE THESE COMMENTS AS YOU DO THE ASSIGNMENT. DELETE OLD/STALE COMMENTS.
-
   __asm
   {
-  encrypt_nn:
-    mov   edx, ecx
-    add   edx, 1
-    ret
+  encrypt_9:
+    push  ebx           // Copy value of ebx to stack, freeing register for use
+    push  ecx           // Copy value of ecx (character to be encrypted) to stack, freeing register for use
+    mov   ebx, [eax]    // Move into ebx the value of the encryption key, resolved from the address stored within eax (variable 'Ekey')
+    and ebx, 0x000000FF // Verify that ebx now contains data only within the lower 8 bytes
+    mov   edx, 05       // Move into edx the number of iterations to perform on the unencrypted character in x9
+                        /// ////////////////////////////////////////////////////////////
+  x9 : rol   bl, 1      /// Rotate lower 8 bytes of ebx by bitwise 1 (data is shifted to the left by one place, but not beyond the 8-byte space of bl)...
+    dec   edx           /// ...decrement edx...
+    jnz   x9            /// ...and jump to x9 if not zero.
+                        /// ////////////////////////////////////////////////////////////
+    or ebx, 04h         // Verify that ebx still contains data only within the lower 8 bytes
+    mov   edx, ebx      // Move the now encrypted character into edx
+    mov[eax], ebx       // Move the original char back into the resolved address stored within eax (variable 'Ekey')
+    pop   eax           // Remove the original value of eax from the stack back into eax
+                        /// ////////////////////////////////////////////////////////////
+  y9 : rol   al, 1      /// Rotate the lower 8 bytes of eax by bitwise 1 (data is shifted to the left by one place, but not beyond the 8-byte space of al)...
+    dec   edx           /// ...decrememnt edx...
+    jnz   y9            /// ...and jump to y9 if not zero.
+                        /// ////////////////////////////////////////////////////////////
+    mov   edx, eax      /// Move into edx the value of eax
+    pop   ebx           /// Remove the original value of ebx from the stack back into ebx
+    ret                 /// Return to caller
   }
 }
 //*** end of encrypt_chars function
