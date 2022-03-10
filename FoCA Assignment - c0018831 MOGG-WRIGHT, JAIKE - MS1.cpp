@@ -3,7 +3,7 @@
 // In this version parameters are passed via registers (see 'encrypt' for details).
 //
 // Original Author: A.Oram - 2012
-// Last revised: A.Hamilton - Sep 2022
+// Last revised: J.Mogg-Wright - March 2022
 
 
 #include <string>     // for std::string
@@ -21,13 +21,13 @@ constexpr int ENCRYPTION_ROUTINE_ID = 9;
 constexpr char ENCRYPTION_KEY = 't';
 constexpr int MAX_CHARS = 6;
 
-constexpr char STRING_TERMINATOR = '$';                      // custom string terminator
-constexpr char LINE_FEED_CHARACTER = '\n';                   // line feed character (hhhmmm, this comment seems a bit unnecassary...)
-constexpr char CARRIAGE_RETURN_CHARACTER = '\r';             // carriage return character
+constexpr char STRING_TERMINATOR = '$';
+constexpr char LINE_FEED_CHARACTER = '\n';
+constexpr char CARRIAGE_RETURN_CHARACTER = '\r';
 
 char original_chars[MAX_CHARS];                              // Original character string
 char encrypted_chars[MAX_CHARS];                             // Encrypted character string
-char decrypted_chars[MAX_CHARS] = "Soon!";                   // Decrypted character string, don't forget to delete default value when testing your decryption!
+char decrypted_chars[MAX_CHARS];                            // Decrypted character string
 
 
 //---------------------------------------------------------------------------------------------------------------
@@ -61,28 +61,31 @@ void get_char (char& a_character)
 /// </summary>
 /// <param name="length">length of string to encrypt, pass by value</param>
 /// <param name="EKey">encryption key to use during encryption, pass by value</param>
-void encrypt_chars (int length, char EKey)
+void __cdecl encrypt_chars (int length, char EKey)
 {
-  char temp_char;                    // Temporary character store
+  char temp_char;                      // Temporary character store
 
-  for (int i = 0; i < length; ++i)   // Encrypt characters one at a time
+  for (int i = 0; i < length; ++i)     // Encrypt characters one at a time
   {
-    temp_char = original_chars [i];  // Get the next char from original_chars array
-                                     // Note the lamentable lack of comments below!
+    temp_char = original_chars [i];    // Get the next char from original_chars array
+                                       // Note the lamentable lack of comments below!
     __asm
     {
-      push   eax                     // Copy value of eax to stack, freeing register for use
-      push   ecx                     // Copy value of ecx to stack, freeing register for use
-      push   edx                     // Copy value of edx to stack, freeing register for use
+        push   eax                     // Copy the value of eax to stack, freeing that register for use
+        push   ecx                     // Copy the value of ecx to stack, freeing that register for use
+        push   edx                     // Copy the value of edx to stack, freeing that register for use
+        lea    eax, EKey               /// [PARAMETER PASS] Load effective address of variable 'EKey' (the encryption key) into register eax
+        push   eax                     // and then push eax onto the stack
+        movzx  ecx, temp_char          /// [PARAMETER PASS] Move temporary character (character to be encrypted) to register ecx with zero extension
+        push   ecx                     // and then push ecx onto the stack
 
-      lea    eax, EKey               // Load effective address of encryption key to register eax
-      movzx  ecx, temp_char          // Move temporary character (character to be encrypted) to register ecx with zero extension
-      call   encrypt_9               // Call subroutine 'encrypt_9'
-      mov    temp_char, dl           // Move variable 'temp_char' to register dl (8-bit low subregister of edx/rdx)
-
-      pop    edx                     // Restore value of edx from stack
-      pop    ecx                     // Restore value of ecx from stack
-      pop    eax                     // Restore value of eax from stack
+        call   encrypt_9               // Call subroutine 'encrypt_9'
+        add    esp, 8                  // Scrubbing Parameters from the stack by moving stack pointer up by 8
+        mov    temp_char, al           // [RETURN VALUE] Move into temp_char the encrypted character returned from subroutine 'encrypt_9'
+      
+        pop    edx                     // Remove, from the stack, the value of edx back into edx
+        pop    ecx                     // Remove, from the stack, the value of ecx back into ecx
+        pop    eax                     // Remove, from the stack, the value of eax back into eax
     }
 
     encrypted_chars [i] = temp_char; // Store encrypted char in the encrypted_chars array
@@ -97,28 +100,44 @@ void encrypt_chars (int length, char EKey)
   __asm
   {
   encrypt_9:
-    push  ebx           // Copy value of ebx to stack, freeing register for use
-    push  ecx           // Copy value of ecx (character to be encrypted) to stack, freeing register for use
-    mov   ebx, [eax]    // Move into ebx the value of the encryption key, resolved from the address stored within eax (variable 'Ekey')
-    and ebx, 0x000000FF // Verify that ebx now contains data only within the lower 8 bytes
-    mov   edx, 05       // Move into edx the number of iterations to perform on the unencrypted character in x9
-                        /// ////////////////////////////////////////////////////////////
-  x9 : rol   bl, 1      /// Rotate lower 8 bytes of ebx by bitwise 1 (data is shifted to the left by one place, but not beyond the 8-byte space of bl)...
-    dec   edx           /// ...decrement edx...
-    jnz   x9            /// ...and jump to x9 if not zero.
-                        /// ////////////////////////////////////////////////////////////
-    or ebx, 04h         // Verify that ebx still contains data only within the lower 8 bytes
-    mov   edx, ebx      // Move the now encrypted character into edx
-    mov[eax], ebx       // Move the original char back into the resolved address stored within eax (variable 'Ekey')
-    pop   eax           // Remove the original value of eax from the stack back into eax
-                        /// ////////////////////////////////////////////////////////////
-  y9 : rol   al, 1      /// Rotate the lower 8 bytes of eax by bitwise 1 (data is shifted to the left by one place, but not beyond the 8-byte space of al)...
-    dec   edx           /// ...decrememnt edx...
-    jnz   y9            /// ...and jump to y9 if not zero.
-                        /// ////////////////////////////////////////////////////////////
-    mov   edx, eax      /// Move into edx the value of eax
-    pop   ebx           /// Remove the original value of ebx from the stack back into ebx
-    ret                 /// Return to caller
+      push      ebp                 //Save the old base pointer
+      mov       ebp, esp            //and make a new one at the current stack pointer - new stack frame for this subroutine!
+
+      push      ebx                 //Save the original state of this register to stack (we have use of your boundiful bytes)
+
+      mov       ecx, [ebp + 08h]    //Value of our passed character to encrypt (temp_char) -
+      push      ecx                 //and onto the stack with you!
+
+      mov       eax, [ebp + 0Ch]    //Address of our passed encryption key (EKey)
+
+      mov       ebx, [eax]          //Put the value of our encryption key (resolved from the address we put in 'eax') into 'ebx'
+      and       ebx, 0x000000FF     //then make sure that it's only occupying the least sig. byte (so basically that it's a char)
+
+      mov       edx, 05             //Prepare to scramble the key - we're going to roll five times and 'edx' will keep track
+
+  //Here, we will scramble the key
+  x9 : rol   bl, 1          //Roll the least sig. byte of ebx by 1 (bits are shifted to the left by one place and around to the least sig. bit, like a carousel)
+      dec       edx           /// ...decrement edx...
+      jnz       x9            /// ...and jump to x9 if edx is not zero.
+
+      or        ebx, 04h    //Verify that ebx still contains data only within the least sig. byte
+
+      mov       edx, ebx    //Copy the now scrambled key into edx (we'll use this as the iterator to encrypt the actual character)
+      mov       [eax], ebx  //and also into the address within 'eax' the scrambled key (ensures no two identical characters can be the same when encrypted)
+     
+      pop       eax         //Remove from the stack the original character to be encrypted and put it into 'eax' (since we don't need the address of the key anymore)
+
+  //Here, we will encrypt the character
+  y9 : rol   al, 1        //Roll the least sig. byte of eax by 1 (bits are shifted to the left by one placeand around to the least sig. bit, like a carousel)
+      dec       edx           /// ...decrememnt edx...
+      jnz       y9            /// ...and jump to y9 if edx is not zero.
+              
+
+      pop       ebx       //Restore ebx to pre-call state from the stack (thank you for your bytes)
+
+      mov       esp, ebp  //Discard the current stack frame by setting the stack pointer to the base pointer of this grame
+      pop       ebp       //Restore the base pointer of the previous stack from the stack
+      ret                 //Return to caller
   }
 }
 //*** end of encrypt_chars function
@@ -135,7 +154,67 @@ void encrypt_chars (int length, char EKey)
 /// <param name="EKey">encryption key to used during the encryption process, pass by value</param>
 void decrypt_chars (int length, char EKey)
 {
-  /*** To be written by you ***/
+    char temp_char;
+
+    for (int i = 0; i < length; ++i)
+    {
+        temp_char = encrypted_chars[i];
+
+        __asm
+        {
+            push    eax             //Save registers to the stack (we need to use these spots),
+            push    ecx             //with 'eax' at the bottom
+            push    edx             //and 'edx' at the top - we'll remember this for when we put them back
+
+            lea     eax, EKey       //Get the address of our passed encryption key and put it in 'eax'
+            push    eax             //and then put that on the stack
+
+            movzx   ecx, temp_char  //Move into 'ecx' our passed character to decrypt (with an extension of zeros for the rest of the register that we don't care about) 
+            push    ecx             //and then put that on the stack
+
+            call    decrypt         //DECRYPT THE CHAR
+
+            add     esp, 8          //Discard the parameters we put on the stack by shrinking it - we don't need them anymore
+            mov     temp_char, al   //Move the decrypted char from our return register (actually 'eax' but we only want the least sig. byte so 'al')
+
+            pop     edx             //Put all the registers back how they were before
+            pop     ecx             //in reverse order of how we put them on the stack to begin with - 
+            pop     eax             //with 'edx' being the last in, so first out, and so on.
+        }
+    }
+
+    decrypted_chars[i] = temp_char;
+
+    return;
+
+    __asm
+    {
+    decrypt:
+        push    ebp                 //Save the old base pointer
+        mov     ebp, esp            //and make a new one at the current stack pointer - new stack frame for this subroutine!
+
+        push    ebx                 //Save the original state of this register to stack (we have use of your boundiful bytes)
+
+        mov     ecx, [ebp+08h]      //Value of our passed character to decrypt (temp_char) -
+        push    ecx                 //and onto the stack with you!
+
+        mov     eax, [ebp+0Ch]      //Address of our passed encryption key (EKey)
+
+        mov     ebx, [eax]          //Put the value of our encryption key (resolved from the address we put in 'eax') into 'ebx'
+        and     ebx, 0x000000FF     //then make sure that it's only occupying the least sig. byte (so basically that it's a char)
+
+        mov     edx, 05             //Prepare to decrypt - we're going to roll five times and 'edx' will keep track
+
+        //
+        /*decrypt thingy*/
+        //
+
+        pop       ebx               //Restore ebx to pre-call state from the stack (thank you for your bytes)
+
+        mov       esp, ebp          //Discard the current stack frame by setting the stack pointer to the base pointer of this grame
+        pop       ebp               //Restore the base pointer of the previous stack from the stack
+        ret                         //Return to caller
+    }
 }
 //*** end of decrypt_chars function
 //---------------------------------------------------------------------------------------------------------------

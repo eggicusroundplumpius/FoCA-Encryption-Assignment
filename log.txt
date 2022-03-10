@@ -1,0 +1,26 @@
+Date: 17/02/2022 Time: 15:30:27
+Name:                  Jaike Mogg-Wright
+Encryption Routine ID: '9'
+Encryption Key:        't
+
+Original string  = googoo Hex = 67 6f 6f 67 6f 6f 
+
+Encrypted string = ŸÌ€≥€∑ Hex = d9 ed db b3 db b7 
+
+Decrypted string =  Soon! Hex = 53 6f 6f 6e 21 00 
+
+-------------------------------------------------------------
+
+Date: 17/02/2022 Time: 17:21:56
+Name:                  Jaike Mogg-Wright
+Encryption Routine ID: '9'
+Encryption Key:        't
+
+Original string  = googoo Hex = 67 6f 6f 67 6f 6f 
+
+Encrypted string = ŸÌ€≥€∑ Hex = d9 ed db b3 db b7 
+
+Decrypted string =  Soon! Hex = 53 6f 6f 6e 21 00 
+
+-------------------------------------------------------------
+
