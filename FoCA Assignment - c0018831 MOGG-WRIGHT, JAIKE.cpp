@@ -93,10 +93,6 @@ void __cdecl encrypt_chars (int length, char EKey)
 
   return;
 
-  // Inputs: register EAX = 32-bit address of Ekey
-  //                  ECX = the character to be encrypted (in the low 8-bit field, CL)
-  // Output: register EDX = the encrypted value of the source character (in the low 8-bit field, DL)
-
   __asm
   {
   encrypt_9:
@@ -130,8 +126,7 @@ void __cdecl encrypt_chars (int length, char EKey)
   //Here, we will encrypt the character
   y9 : rol   al, 1        //Roll the least sig. byte of eax by 1 (bits are shifted to the left by one placeand around to the least sig. bit, like a carousel)
       dec       edx           /// ...decrememnt edx...
-      jnz       y9            /// ...and jump to y9 if edx is not zero.
-              
+      jnz       y9            /// ...and jump to y9 if edx is not zero.   
 
       pop       ebx       //Restore ebx to pre-call state from the stack (thank you for your bytes)
 
@@ -196,7 +191,7 @@ void decrypt_chars (int length, char EKey)
         push    ebx                 //Save the original state of this register to stack (we have use of your boundiful bytes)
 
         mov     ecx, [ebp+08h]      //Value of our passed character to decrypt (temp_char) -
-        push    ecx                 //and onto the stack with you!
+        push    ecx                 //and onto the stack with you
 
         mov     eax, [ebp+0Ch]      //Address of our passed encryption key (EKey)
 
@@ -205,9 +200,22 @@ void decrypt_chars (int length, char EKey)
 
         mov     edx, 05             //Prepare to decrypt - we're going to roll five times and 'edx' will keep track
 
-        //
-        /*decrypt thingy*/
-        //
+    //Here we will scramble the key
+    x9: rol     bl, 1               //Roll the least sig. byte of ebx by 1 (bits are shifted to the left by one place and around to the least sig. bit, like a carousel)
+        dec     edx                     /// ...decrement edx...
+        jnz     x9                      /// ...and jump to x9 if edx is not zero.
+
+        or      ebx, 04h            //Verify that ebx still contains data only within the least sig. byte
+
+        mov     edx, ebx            //Copy the now scrambled key into edx (we'll use this as the iterator to decrypt the actual character)
+        mov     [eax], ebx          //and also into the address within 'eax', the scrambled key (just as the encryption rountine does)
+
+        pop     eax                 //Remove from the stack the original character to be encrypted and put it into 'eax' (since we don't need the address of the key anymore)
+
+    //Here, we will decrypt the character
+    y9: ror     al, 1               //Roll the least sig. byte of eax by 1 (bits are shifted to the left by one placeand around to the least sig. bit, like a carousel)
+        dec     edx                     /// ...decrememnt edx...
+        jnz     y9                      /// ...and jump to y9 if edx is not zero.
 
         pop       ebx               //Restore ebx to pre-call state from the stack (thank you for your bytes)
 

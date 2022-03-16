@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30413.136
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{00F2D0A3-F7D7-428C-B92D-D59FBDEEAAE0}"
 	ProjectSection(SolutionItems) = preProject
-		FoCA Assignment - c0018831 MOGG-WRIGHT, JAIKE - MS1.cpp = FoCA Assignment - c0018831 MOGG-WRIGHT, JAIKE - MS1.cpp
+		FoCA Assignment - c0018831 MOGG-WRIGHT, JAIKE.cpp = FoCA Assignment - c0018831 MOGG-WRIGHT, JAIKE.cpp
 	EndProjectSection
 EndProject
 Global
